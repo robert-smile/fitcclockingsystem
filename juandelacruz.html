@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FITC Attendance System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .fitc-orange { color: #d34a1a; }
+        .bg-fitc-orange { background-color: #d34a1a; }
+        .shadow-fitc { box-shadow: 0 10px 25px -5px rgba(211, 74, 26, 0.3); }
+        .modal-backdrop { backdrop-filter: blur(8px); background-color: rgba(15, 23, 42, 0.9); }
+        ::-webkit-scrollbar { display: none; }
+        
+        .logo-container { display: flex; align-items: center; justify-content: center; height: 80px; width: 100%; }
+        .logo-image { height: clamp(40px, 20vw, 60px); width: auto; object-fit: contain; transition: height 0.3s ease; }
+
+        @media (min-width: 768px) {
+            .logo-container { justify-content: flex-start; width: auto; }
+            .logo-image { height: 60px; }
+        }
+
+        /* --- Animations --- */
+
+        /* Success Pop */
+        @keyframes modal-pop {
+            0% { transform: scale(0.9); opacity: 0; }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Checkmark Bounce */
+        @keyframes check-bounce {
+            0% { transform: scale(0); opacity: 0; }
+            70% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Photo Zoom In */
+        @keyframes photo-zoom {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        /* Pulse effect para sa Locating status */
+@keyframes status-pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+
+.animate-pulse-slow {
+    animation: status-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Glassmorphism overlay para sa disabled buttons */
+.btn-loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.btn-loading::after {
+    content: "📡 Fetching GPS...";
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-radius: inherit;
+    backdrop-filter: blur(2px);
+    z-index: 10;
+}
+
+        /* Delete Slide Out */
+        .fade-out-item {
+            transition: all 0.4s ease;
+            transform: translateX(30px);
+            opacity: 0;
+        }
+
+        /* Animation Classes */
+        .animate-modal-pop { animation: modal-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .animate-check-bounce { animation: check-bounce 0.5s 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+        .animate-photo-zoom { animation: photo-zoom 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+        /* Camera Modal Transition */
+        #cameraContent { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease; transform: translateY(100%); opacity: 0; }
+        #cameraContent.active { transform: translateY(0); opacity: 1; }
+
+        /* Reset Modal Transition */
+        #resetContent { transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    </style>
+</head>
+<link rel="manifest" href="juandelacruz.json">
+<meta name="theme-color" content="#d34a1a">
+<link rel="apple-touch-icon" href="FITCL.png">
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .then(reg => console.log('Service Worker registered'))
+        .catch(err => console.log('Service Worker failed', err));
+    });
+  }
+</script>
+
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex flex-col items-center gap-2 sticky top-0 z-30">
+        <div class="logo-container">
+            <img src="FITCL.png" alt="FITC Attendance Logo" class="logo-image w-auto">
+        </div>
+        <div class="flex flex-col items-center">
+            <div class="text-2xl font-black fitc-orange" id="clock">12:00:00</div>
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]" id="date-display">WEDNESDAY, MARCH 18</div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-lg mx-auto w-full p-6 space-y-8">
+        
+        <section class="bg-slate-900 rounded-[2.5rem] p-6 text-white shadow-2xl relative overflow-hidden group">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+            <div class="flex items-center gap-5 relative z-10">
+                <div class="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shadow-inner">
+                    <i data-lucide="user" class="w-8 h-8 text-slate-500"></i>
+                </div>
+                <div>
+                   <p class="text-[10px] font-black fitc-orange uppercase tracking-widest mb-1">ID: <span id="display-id">---</span></p>
+                    <h2 class="text-xl font-bold" id="display-name">FITC User</h2>
+                    <div class="flex items-center gap-2 mt-1 text-slate-400 text-xs font-medium">
+                        <i data-lucide="map-pin" class="w-3 h-3"></i>
+                        <span id="location-display">Locating...</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="grid grid-cols-1 gap-4">
+            <button id="btn-in" onclick="openCamera('IN')" class="group relative h-32 rounded-[2rem] bg-fitc-orange text-white shadow-fitc flex flex-col items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50">
+                <i data-lucide="log-in" class="w-8 h-8"></i>
+                <span class="font-bold text-lg">Clock In</span>
+                <div id="badge-in" class="hidden absolute top-4 right-4 bg-white/20 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter">Active</div>
+            </button>
+
+            <button id="btn-out" onclick="openCamera('OUT')" disabled class="group h-32 rounded-[2rem] bg-slate-900 text-white shadow-xl flex flex-col items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-30">
+                <i data-lucide="log-out" class="w-8 h-8"></i>
+                <span class="font-bold text-lg">Clock Out</span>
+            </button>
+        </div>
+
+        <section class="space-y-4">
+            <div class="flex items-center justify-between px-2">
+                <div class="flex items-center gap-2 text-slate-400 font-bold text-xs uppercase tracking-widest">
+                    <i data-lucide="history" class="w-4 h-4"></i>
+                    Recent Activity
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="clearActivityLogs()" class="text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-rose-50">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        <span class="text-[10px] font-bold uppercase tracking-widest">Reset</span>
+                    </button>
+                    <div id="status-badge" class="hidden flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-black border border-emerald">
+                        <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                        ON DUTY: <span id="elapsed-timer">00:00:00</span>
+                    </div>
+                </div>
+            </div>
+            <div id="activity-list" class="space-y-3"></div>
+        </section>
+    </main>
+
+    <footer class="bg-slate-100/80 backdrop-blur-md border-t border-slate-200 px-4 py-3 grid grid-cols-2 gap-3 sticky bottom-0 z-20">
+        <div class="bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center">
+            <div class="flex items-center gap-1.5 text-slate-400 mb-0.5"><i data-lucide="timer" class="w-2.5 h-2.5"></i><span class="text-[9px] font-black uppercase tracking-wider">Total Shift</span></div>
+            <div class="text-base font-black text-slate-800 tabular-nums leading-none" id="footer-timer">00:00:00</div>
+        </div>
+        <div class="bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center">
+            <div class="flex items-center gap-1.5 text-slate-400 mb-0.5"><i data-lucide="clock" class="w-2.5 h-2.5"></i><span class="text-[9px] font-black uppercase tracking-wider">Last Out</span></div>
+            <div class="text-base font-black text-slate-800 tabular-nums leading-none" id="footer-last-out">--:--</div>
+        </div>
+    </footer>
+
+    <div id="cameraModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-6">
+        <div id="cameraContent" class="bg-white w-full max-w-md rounded-[3rem] overflow-hidden shadow-2xl flex flex-col">
+            <div class="p-6 text-center border-b border-slate-100"><h3 class="text-xl font-bold text-slate-800">Attendance Capture</h3></div>
+            <div class="p-6"><div class="relative aspect-[3/4] bg-slate-900 rounded-[2rem] overflow-hidden"><video id="webcam" autoplay playsinline class="w-full h-full object-cover scale-x-[-1]"></video></div></div>
+            <div class="p-6 pt-0 space-y-3">
+                <button id="captureBtn" class="w-full bg-fitc-orange text-white h-16 rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-3"><i data-lucide="camera" class="w-6 h-6"></i>SNAP & PROCEED</button>
+                <button onclick="closeCamera()" class="w-full text-slate-400 font-bold text-xs py-2">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="successModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-6">
+        <div id="successContent" class="bg-white w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl border border-slate-100 opacity-0">
+            <div class="w-24 h-24 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                <i data-lucide="check-circle-2" id="successCheck" class="w-12 h-12 opacity-0"></i>
+            </div>
+            <h2 class="text-3xl font-black text-slate-800 tracking-tight">Shift Recorded!</h2>
+            <p id="sync-status-text" class="mt-4 text-slate-500 text-sm leading-relaxed px-4 font-medium">Recorded successfully. Your shift data has been synced to the system.</p>
+            <button onclick="closeSuccessModal()" class="w-full bg-slate-900 text-white h-16 rounded-2xl font-bold text-lg mt-10 active:scale-95 transition-transform shadow-lg shadow-slate-200">DISMISS</button>
+        </div>
+    </div>
+
+    <div id="photoViewerModal" class="fixed inset-0 z-[60] modal-backdrop hidden flex flex-col items-center justify-center p-4" onclick="closePhotoViewer()">
+        <div class="absolute top-6 right-6 z-10">
+            <button onclick="closePhotoViewer()" class="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white p-3 rounded-full"><i data-lucide="x" class="w-6 h-6"></i></button>
+        </div>
+        <div class="relative max-w-md w-full animate-photo-zoom" onclick="event.stopPropagation()">
+            <div class="bg-white rounded-[2.5rem] overflow-hidden shadow-2xl">
+                <img id="fullViewImage" src="" class="w-full h-auto max-h-[75vh] object-contain bg-black">
+                <div class="p-6 bg-white flex justify-between items-center">
+                    <div>
+                        <h4 id="viewName" class="font-bold text-slate-800 text-lg">Employee Name</h4>
+                        <p id="viewMeta" class="text-xs text-slate-500 font-medium mt-1 uppercase tracking-wider">MARCH 18 • 12:00 PM</p>
+                    </div>
+                    <div id="viewBadge" class="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white">IN</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="resetModal" class="fixed inset-0 z-50 flex items-center justify-center p-6 hidden">
+        <div id="resetBackdrop" class="absolute inset-0 bg-slate-900/90 backdrop-blur-sm transition-opacity duration-300 opacity-0"></div>
+        <div id="resetContent" class="bg-white w-full max-w-sm rounded-[2.5rem] p-8 text-center shadow-2xl relative z-10 transition-all duration-300 scale-90 opacity-0">
+            <h2 class="text-xl font-bold text-slate-800">Clear History?</h2>
+            <p class="text-slate-500 mt-3 text-sm leading-relaxed">(This will not delete your records in Google Sheets)</p>
+            <div class="grid grid-cols-2 gap-3 mt-8">
+                <button onclick="closeResetModal()" class="py-4 font-bold text-slate-400">CANCEL</button>
+                <button onclick="confirmClearLogs()" class="bg-rose-500 text-white py-4 rounded-2xl font-bold">YES, CLEAR</button>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        // --- HARDCODED USER DATA ---
+        // Palitan ito sa bawat file para sa bawat employee
+        const HARDCODED_USER = {
+            id: "JDC",
+            name: "Juan Dela Cruz"
+        };
+
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzT84a8jjGkKamo7SN0RAcvsiinCPvLiqlWT_gbwmAcwVZYcMaJvlJUUPjEoRjUkdi5/exec";
+        
+        let currentAction = "";
+        let localStream = null;
+        let timerInterval;
+
+        lucide.createIcons();
+
+        // 1. Startup Logic
+        window.onload = function() {
+            // I-display agad ang hardcoded data
+            document.getElementById('display-name').innerText = "FITC " + HARDCODED_USER.name;
+            document.getElementById('display-id').innerText = HARDCODED_USER.id;
+            
+            updateClock();
+            setInterval(updateClock, 1000);
+            updateLocation();
+            renderUI();
+        };
+
+        // 2. Clock & Date
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+            document.getElementById('date-display').innerText = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase();
+        }
+
+        // 3. Geolocation
+function updateLocation() {
+    const locDisplay = document.getElementById('location-display');
+    const btnIn = document.getElementById('btn-in');
+    const btnOut = document.getElementById('btn-out');
+    const startTime = localStorage.getItem('fitc_startTime');
+
+    // 1. I-lock muna ang buttons habang naghahanap
+    btnIn.classList.add('btn-loading');
+    btnOut.classList.add('btn-loading');
+    locDisplay.classList.add('animate-pulse-slow');
+    locDisplay.innerText = "Scanning Satellite...";
+
+    if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            // SUCCESS: Nakuha ang Location
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            
+            locDisplay.innerText = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+            locDisplay.classList.remove('animate-pulse-slow', 'text-slate-400');
+            locDisplay.classList.add('text-emerald-400'); // Palitan ng kulay para alam nilang OK na
+
+            localStorage.setItem('fitc_lat', lat);
+            localStorage.setItem('fitc_lng', lng);
+
+            // 2. I-unlock ang buttons base sa shift status
+            btnIn.classList.remove('btn-loading');
+            btnOut.classList.remove('btn-loading');
+            
+            // I-trigger ang renderUI para ayusin ang disabled/enabled buttons
+            renderUI(); 
+
+        }, (err) => {
+            // ERROR: Denied o Timeout
+            locDisplay.innerText = "GPS Access Denied";
+            locDisplay.classList.replace('text-slate-400', 'text-rose-500');
+            alert("Please enable GPS/Location to use the attendance system.");
+        }, { 
+            enableHighAccuracy: true,
+            timeout: 10000 
+        });
+    }
+}
+
+        // 4. Camera Controls
+        async function openCamera(type) {
+            currentAction = type;
+            const modal = document.getElementById('cameraModal');
+            const content = document.getElementById('cameraContent');
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => content.classList.add('active'));
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } 
+                });
+                document.getElementById('webcam').srcObject = localStream;
+            } catch (err) { alert("Camera error: Please enable camera permissions."); closeCamera(); }
+        }
+
+        function closeCamera() {
+            const modal = document.getElementById('cameraModal');
+            const content = document.getElementById('cameraContent');
+            content.classList.remove('active');
+            if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        document.getElementById('captureBtn').addEventListener('click', () => {
+            const video = document.getElementById('webcam');
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.save();
+            context.translate(canvas.width, 0);
+            context.scale(-1, 1);
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            context.restore();
+            
+            const photoData = canvas.toDataURL('image/jpeg', 0.7);
+            closeCamera();
+            finalizeAttendance(photoData);
+        });
+
+        // 5. Finalize Attendance
+        async function finalizeAttendance(photo) {
+            const timestamp = Date.now();
+            
+            // Gamitin ang hardcoded user data
+            const log = { 
+                id: HARDCODED_USER.id, 
+                name: HARDCODED_USER.name, 
+                type: currentAction, 
+                timestamp, 
+                photo, 
+                lat: localStorage.getItem('fitc_lat') || 0, 
+                lng: localStorage.getItem('fitc_lng') || 0,
+                date: new Date().toLocaleDateString(),
+                time: new Date().toLocaleTimeString()
+            };
+
+            // Save locally
+            let logs = JSON.parse(localStorage.getItem('fitc_logs') || "[]");
+            logs.unshift(log);
+            localStorage.setItem('fitc_logs', JSON.stringify(logs.slice(0, 10)));
+
+            if (currentAction === 'IN') {
+                localStorage.setItem('fitc_startTime', timestamp);
+            } else {
+                localStorage.removeItem('fitc_startTime');
+                triggerSuccessUI(); 
+            }
+            
+            renderUI();
+
+            // Background Sync
+            fetch(GOOGLE_SCRIPT_URL, { 
+                method: "POST", 
+                mode: 'no-cors', 
+                body: JSON.stringify(log) 
+            }).catch(err => console.error("Sync error:", err));
+        }
+
+        // 6. UI Rendering
+function renderUI() {
+    const startTime = localStorage.getItem('fitc_startTime');
+    const hasGPS = localStorage.getItem('fitc_lat'); // Check kung may nakuha nang coordinate
+    
+    const btnIn = document.getElementById('btn-in');
+    const btnOut = document.getElementById('btn-out');
+
+    // Display hardcoded data
+    document.getElementById('display-name').innerText = "FITC " + HARDCODED_USER.name;
+    document.getElementById('display-id').innerText = HARDCODED_USER.id;
+
+    // Button Logic base sa Shift + GPS Status
+    if (startTime) {
+        btnIn.disabled = true;
+        // Kung may GPS na, i-enable ang OUT. Kung wala pa, manatiling loading.
+        btnOut.disabled = !hasGPS; 
+    } else {
+        btnIn.disabled = !hasGPS;
+        btnOut.disabled = true;
+        badgeIn.classList.add('hidden'); 
+        statusBadge.classList.add('hidden');
+        if (timerInterval) clearInterval(timerInterval);
+        document.getElementById('footer-timer').innerText = "00:00:00";
+    }
+
+    const lastOut = logs.find(l => l.type === 'OUT');
+    document.getElementById('footer-last-out').innerText = lastOut ? lastOut.time : "--:--";
+
+    const list = document.getElementById('activity-list');
+    list.innerHTML = logs.length === 0 ? `<div class="bg-white border border-slate-200 rounded-3xl p-10 text-center text-slate-400 italic text-sm">No logs found.</div>` : 
+    logs.map(log => `
+        <div class="bg-white border border-slate-200 rounded-3xl p-4 flex items-center justify-between shadow-sm">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-slate-100 overflow-hidden border border-slate-200 cursor-zoom-in" 
+                     onclick="openPhotoViewer('${log.photo}', '${log.name}', '${log.type}', '${log.date}', '${log.time}')">
+                    <img src="${log.photo}" class="w-full h-full object-cover">
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${log.type === 'IN' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${log.type}</span>
+                        <span class="text-sm font-bold text-slate-700">${log.time}</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 font-bold mt-0.5">${log.date}</p>
+                </div>
+            </div>
+            <i data-lucide="shield-check" class="w-4 h-4 text-slate-200"></i>
+        </div>`).join('');
+    lucide.createIcons();
+}
+        function startTimer(start) {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                const diff = Date.now() - start;
+                const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
+                const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+                const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+                const timeStr = `${h}:${m}:${s}`;
+                document.getElementById('elapsed-timer').innerText = timeStr;
+                document.getElementById('footer-timer').innerText = timeStr;
+            }, 1000);
+        }
+
+        // Modals & Success
+        function triggerSuccessUI() {
+            if ("vibrate" in navigator) navigator.vibrate([100, 50, 100]);
+            const sModal = document.getElementById('successModal');
+            const sContent = document.getElementById('successContent');
+            const sCheck = document.getElementById('successCheck');
+            sModal.classList.remove('hidden');
+            sContent.classList.add('animate-modal-pop');
+            sCheck.classList.add('animate-check-bounce');
+        }
+
+        function closeSuccessModal() {
+            document.getElementById('successModal').classList.add('hidden');
+            renderUI();
+        }
+
+        function openPhotoViewer(photo, name, type, date, time) {
+            const modal = document.getElementById('photoViewerModal');
+            const img = document.getElementById('fullViewImage');
+            img.src = photo;
+            document.getElementById('viewName').innerText = "FITC " + name;
+            document.getElementById('viewMeta').innerText = `${date} • ${time}`;
+            document.getElementById('viewBadge').innerText = type;
+            document.getElementById('viewBadge').className = `px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white ${type === 'IN' ? 'bg-emerald-500' : 'bg-rose-500'}`;
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closePhotoViewer() { document.getElementById('photoViewerModal').classList.add('hidden'); }
+
+        function clearActivityLogs() {
+            const modal = document.getElementById('resetModal');
+            modal.classList.remove('hidden');
+            const b = document.getElementById('resetBackdrop'), c = document.getElementById('resetContent');
+            setTimeout(() => { b.classList.replace('opacity-0', 'opacity-100'); c.classList.replace('scale-90', 'scale-100'); c.classList.replace('opacity-0', 'opacity-100'); }, 10);
+        }
+
+        function closeResetModal() {
+            document.getElementById('resetModal').classList.add('hidden');
+        }
+
+        function confirmClearLogs() { 
+            localStorage.removeItem('fitc_logs'); 
+            closeResetModal(); 
+            renderUI(); 
+        }
+    </script>
+</body>
+</html>

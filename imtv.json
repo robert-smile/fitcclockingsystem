@@ -1,0 +1,17 @@
+{
+  "short_name": "FITC App",
+  "name": "FITC Attendance System",
+  "icons": [
+    {
+      "src": "FITCL.png",
+      "sizes": "912x912",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./ivanvicencio.html",
+  "scope": "./",
+  "display": "standalone",
+  "theme_color": "#d34a1a",
+  "background_color": "#ffffff"
+}
