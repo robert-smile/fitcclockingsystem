@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fitc-cache-v2'; // Binago natin sa v2 para mag-trigger ng update
+const CACHE_NAME = 'fitc-cache-v4'; // Binago natin sa v2 para mag-trigger ng update
 const assets = [
   './',
   './index.html',
@@ -8,7 +8,7 @@ const assets = [
 
 // 1. INSTALL - Dito natin ilalagay ang skipWaiting para mag-update agad
 self.addEventListener('install', e => {
-  self.skipWaiting(); 
+  self.skipWaiting();
   e.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       console.log('Caching new assets');
