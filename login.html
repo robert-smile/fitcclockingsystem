@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FITC System - Login / Register</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .fitc-orange {
+            color: #d34a1a;
+        }
+
+        .bg-fitc-orange {
+            background-color: #d34a1a;
+        }
+
+        .shadow-fitc {
+            box-shadow: 0 10px 25px -5px rgba(211, 74, 26, 0.3);
+        }
+
+        .modal-backdrop {
+            backdrop-filter: blur(8px);
+            background-color: rgba(15, 23, 42, 0.9);
+        }
+
+        ::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col justify-center items-center p-6">
+
+    <div class="max-w-md w-full bg-white rounded-[2.5rem] p-8 shadow-xl border border-slate-100 space-y-6">
+        <!-- Header -->
+        <div class="text-center space-y-2">
+            <div
+                class="w-16 h-16 bg-orange-50 fitc-orange rounded-2xl mx-auto flex items-center justify-center font-black text-2xl shadow-inner">
+                F
+            </div>
+            <h1 class="text-2xl font-black text-slate-800">FITC Portal</h1>
+            <p class="text-xs text-slate-400 font-medium">Log in or register your account to continue</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex bg-slate-100 p-1 rounded-2xl">
+            <button id="tab-login" onclick="switchTab('login')"
+                class="flex-1 py-3 text-xs font-bold rounded-xl transition-all bg-white text-slate-800 shadow-sm">LOG
+                IN</button>
+            <button id="tab-register" onclick="switchTab('register')"
+                class="flex-1 py-3 text-xs font-bold rounded-xl transition-all text-slate-400">REGISTER</button>
+        </div>
+
+        <!-- Form Container -->
+        <div id="form-container" class="space-y-4">
+            <!-- ID Input -->
+            <div class="space-y-1.5">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Employee ID</label>
+                <input type="text" id="emp-id" placeholder="e.g. FITC-2026-001"
+                    class="w-full h-14 px-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 font-medium focus:outline-none focus:border-orange-500 transition-colors">
+            </div>
+
+            <!-- Name Input (Only for Register) -->
+            <div id="name-field" class="space-y-1.5 hidden">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Full Name</label>
+                <input type="text" id="emp-name" placeholder="e.g. Juan Dela Cruz"
+                    class="w-full h-14 px-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 font-medium focus:outline-none focus:border-orange-500 transition-colors">
+            </div>
+
+            <!-- Email Input (Only for Register - Para sa Gmail Notification) -->
+            <div id="email-field" class="space-y-1.5 hidden">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Gmail Address</label>
+                <input type="email" id="emp-email" placeholder="e.g. name@gmail.com"
+                    class="w-full h-14 px-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 font-medium focus:outline-none focus:border-orange-500 transition-colors">
+            </div>
+
+            <!-- Password Input -->
+            <div class="space-y-1.5">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Password</label>
+                <input type="password" id="emp-password" placeholder="Enter your password"
+                    class="w-full h-14 px-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 font-medium focus:outline-none focus:border-orange-500 transition-colors">
+            </div>
+
+            <!-- Forgot Password Link (Makikita lang tuwing Login mode) -->
+            <div id="forgot-password-container" class="text-right">
+                <button onclick="handleForgotPassword()"
+                    class="text-xs font-bold text-orange-600 hover:underline">Forgot Password?</button>
+            </div>
+
+            <!-- Action Button -->
+            <button id="action-btn" onclick="handleSubmit()"
+                class="w-full h-16 bg-fitc-orange text-white rounded-2xl font-bold text-base shadow-fitc active:scale-95 transition-all mt-4 flex items-center justify-center gap-2">
+                <span id="btn-text">LOG IN</span>
+                <i data-lucide="arrow-right" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div id="loadingModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-6">
+        <div class="bg-white rounded-3xl p-8 text-center space-y-4 shadow-2xl max-w-xs w-full">
+            <div class="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto">
+            </div>
+            <p id="loading-text" class="text-slate-700 font-bold text-sm">Validating...</p>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        let currentMode = 'login'; // 'login' or 'register'
+
+        function switchTab(mode) {
+            currentMode = mode;
+            const tabLogin = document.getElementById('tab-login');
+            const tabRegister = document.getElementById('tab-register');
+            const nameField = document.getElementById('name-field');
+            const emailField = document.getElementById('email-field');
+            const forgotPasswordContainer = document.getElementById('forgot-password-container');
+            const btnText = document.getElementById('btn-text');
+
+            if (mode === 'login') {
+                tabLogin.className = "flex-1 py-3 text-xs font-bold rounded-xl transition-all bg-white text-slate-800 shadow-sm";
+                tabRegister.className = "flex-1 py-3 text-xs font-bold rounded-xl transition-all text-slate-400";
+                nameField.classList.add('hidden');
+                emailField.classList.add('hidden');
+                forgotPasswordContainer.classList.remove('hidden');
+                btnText.innerText = "LOG IN";
+            } else {
+                tabRegister.className = "flex-1 py-3 text-xs font-bold rounded-xl transition-all bg-white text-slate-800 shadow-sm";
+                tabLogin.className = "flex-1 py-3 text-xs font-bold rounded-xl transition-all text-slate-400";
+                nameField.classList.remove('hidden');
+                emailField.classList.remove('hidden');
+                forgotPasswordContainer.classList.add('hidden');
+                btnText.innerText = "REGISTER ACCOUNT";
+            }
+        }
+
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwATFswSwbF-GwsqcxsF9zK5YffnWcLxoXwbePh9MZX2yT5OlcLCk40QirxDNNHEDDi/exec";
+
+        async function handleSubmit() {
+            const id = document.getElementById('emp-id').value.trim();
+            const name = document.getElementById('emp-name').value.trim();
+            const email = document.getElementById('emp-email').value.trim();
+            const password = document.getElementById('emp-password').value.trim();
+
+            if (!id) {
+                alert("Please enter your Employee ID.");
+                return;
+            }
+            if (currentMode === 'register') {
+                if (!name) {
+                    alert("Please enter your Full Name.");
+                    return;
+                }
+                if (!email || !email.includes("@")) {
+                    alert("Please enter a valid Gmail address.");
+                    return;
+                }
+            }
+            if (!password) {
+                alert("Please enter your password.");
+                return;
+            }
+
+            document.getElementById('loadingModal').classList.remove('hidden');
+            document.getElementById('loading-text').innerText = currentMode === 'login' ? "Logging in..." : "Registering account...";
+
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        action: currentMode,
+                        id: id,
+                        name: name,
+                        email: email,
+                        password: password
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.status === "success" || currentMode === 'register') {
+                    // I-save sa localStorage para magamit ng Homepage
+                    localStorage.setItem('fitc_user', JSON.stringify({
+                        id: id,
+                        name: result.name || name
+                    }));
+
+                    // Redirect patungo sa sample.html
+                    window.location.href = "sample.html";
+                } else {
+                    alert(result.message || "User not found or incorrect password.");
+                    document.getElementById('loadingModal').classList.add('hidden');
+                }
+            } catch (err) {
+                console.error(err);
+                // Fallback kung offline
+                localStorage.setItem('fitc_user', JSON.stringify({ id: id, name: name || "Employee" }));
+                window.location.href = "sample.html";
+            }
+        }
+
+        function handleForgotPassword() {
+            const id = prompt("Please enter your Employee ID to reset your password:");
+            if (id) {
+                alert("If this ID exists in the system, password reset instructions have been sent to administration.");
+            }
+        }
+    </script>
+</body>
+
+</html>

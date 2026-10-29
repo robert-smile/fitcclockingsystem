@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FITC Product Tracker</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .fitc-orange {
+            color: #f97316;
+        }
+
+        .fitc-bg-orange {
+            background-color: #f97316;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 min-h-screen pb-12">
+
+    <!-- HEADER / NAVIGATION -->
+    <header class="bg-white border-b border-slate-100 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div
+                    class="w-12 h-12 bg-orange-50 fitc-orange rounded-2xl flex items-center justify-center shadow-inner">
+                    <i data-lucide="package" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold text-slate-800 tracking-tight">Product Tracker</h1>
+                    <p class="text-xs text-slate-400 font-medium">FITC Inventory Management System</p>
+                </div>
+            </div>
+            <!-- Top Add Product Button (Nakatago habang wala pang table) -->
+            <div id="topActionBtn" class="hidden flex items-center space-x-3">
+                <button onclick="openAddModal()"
+                    class="fitc-bg-orange hover:bg-orange-600 text-white px-5 py-3 rounded-2xl font-bold flex items-center space-x-2 shadow-lg shadow-orange-500/20 transition-all transform active:scale-95">
+                    <i data-lucide="plus" class="w-5 h-5"></i>
+                    <span>Add Product</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="max-w-7xl mx-auto px-6 mt-8">
+
+        <!-- INITIAL BLANK STATE WITH BIG PLUS BUTTON -->
+        <div id="blankState" class="flex flex-col items-center justify-center py-24 text-center">
+            <div class="w-24 h-24 bg-orange-50 fitc-orange rounded-[2.5rem] flex items-center justify-center shadow-inner mb-6 transform hover:scale-105 transition-transform cursor-pointer"
+                onclick="createInitialTable()">
+                <i data-lucide="plus" class="w-12 h-12"></i>
+            </div>
+            <h2 class="text-2xl font-black text-slate-800 tracking-tight mb-2">Wala pang Product Table</h2>
+            <p class="text-slate-400 text-sm font-medium max-w-sm mb-6">I-click ang plus sign sa ibaba para simulan ang
+                paggawa ng iyong product tracker table.</p>
+            <button onclick="createInitialTable()"
+                class="fitc-bg-orange hover:bg-orange-600 text-white px-8 py-4 rounded-2xl font-bold shadow-xl shadow-orange-500/20 flex items-center space-x-2 transition-all">
+                <i data-lucide="plus" class="w-5 h-5"></i>
+                <span>Gawa ng Table</span>
+            </button>
+        </div>
+
+        <!-- ACTIVE TRACKER CONTAINER (Nakatago rin habang wala pang table) -->
+        <div id="activeTracker" class="hidden space-y-6">
+
+            <!-- STATS / SUMMARY CARDS -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div
+                    class="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center space-x-4">
+                    <div class="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                        <i data-lucide="boxes" class="w-7 h-7"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Total Products</p>
+                        <h3 class="text-2xl font-black text-slate-800" id="totalProductsCount">0</h3>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center space-x-4">
+                    <div class="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
+                        <i data-lucide="alert-triangle" class="w-7 h-7"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Low Stock Alert</p>
+                        <h3 class="text-2xl font-black text-slate-800" id="lowStockCount">0</h3>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center space-x-4">
+                    <div class="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
+                        <i data-lucide="wallet" class="w-7 h-7"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Total Value</p>
+                        <h3 class="text-2xl font-black text-slate-800" id="totalValueCount">₱0.00</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEARCH AND TABLE CONTROLS (Kasamang lilitaw ang Add Column sa tabi) -->
+            <div
+                class="bg-white p-4 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div class="relative w-full md:w-96">
+                    <i data-lucide="search" class="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2"></i>
+                    <input type="text" id="searchInput" oninput="filterProducts()" placeholder="Search product..."
+                        class="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-700 text-sm focus:outline-none focus:border-orange-500 font-medium">
+                </div>
+
+                <!-- Add Column Button sa tabi -->
+                <button onclick="openAddColumnModal()"
+                    class="w-full md:w-auto bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-2xl font-bold flex items-center justify-center space-x-2 transition-all">
+                    <i data-lucide="columns" class="w-5 h-5"></i>
+                    <span>Add Column</span>
+                </button>
+            </div>
+
+            <!-- PRODUCTS TABLE -->
+            <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr id="tableHeaderRow"
+                                class="border-b border-slate-100 text-slate-400 text-xs font-bold uppercase tracking-wider bg-slate-50/50">
+                                <!-- Dynamic Default 3 Columns + Extra Columns -->
+                            </tr>
+                        </thead>
+                        <tbody id="productTableBody"
+                            class="divide-y divide-slate-100 text-sm font-medium text-slate-700">
+                            <!-- Dynamic rows will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ADD PRODUCT MODAL -->
+    <div id="productModal"
+        class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-6">
+        <div
+            class="bg-white w-full max-w-md rounded-[3rem] p-8 shadow-2xl border border-slate-100 transform transition-all">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-2xl font-black text-slate-800 tracking-tight">Add New Product</h3>
+                <button onclick="closeAddModal()"
+                    class="w-10 h-10 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center hover:bg-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="productForm" onsubmit="saveProduct(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Product Name</label>
+                    <input type="text" id="prodName" required
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-orange-500">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Price (₱)</label>
+                        <input type="number" step="0.01" id="prodPrice" required
+                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-orange-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Stock Quantity</label>
+                        <input type="number" id="prodStock" required
+                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-orange-500">
+                    </div>
+                </div>
+
+                <!-- Dynamic Extra Inputs -->
+                <div id="dynamicFormInputs" class="space-y-4"></div>
+
+                <button type="submit"
+                    class="w-full mt-4 fitc-bg-orange hover:bg-orange-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-orange-500/20 transition-all">
+                    Save Product
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ADD COLUMN MODAL -->
+    <div id="columnModal"
+        class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-6">
+        <div
+            class="bg-white w-full max-w-sm rounded-[3rem] p-8 shadow-2xl border border-slate-100 transform transition-all">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-black text-slate-800 tracking-tight">Add New Column</h3>
+                <button onclick="closeAddColumnModal()"
+                    class="w-10 h-10 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center hover:bg-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form onsubmit="saveNewColumn(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Column Name</label>
+                    <input type="text" id="newColumnName" required placeholder="e.g. Supplier, Category"
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-orange-500">
+                </div>
+                <button type="submit"
+                    class="w-full fitc-bg-orange hover:bg-orange-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-orange-500/20 transition-all">
+                    Add Column
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        let columns = ["Product Name", "Price", "Stock", "Status"];
+        let products = [];
+
+        function createInitialTable() {
+            document.getElementById('blankState').classList.add('hidden');
+            document.getElementById('activeTracker').classList.remove('hidden');
+            document.getElementById('topActionBtn').classList.remove('hidden');
+            renderTable();
+        }
+
+        function renderTable(dataToRender = products) {
+            const headerRow = document.getElementById('tableHeaderRow');
+            headerRow.innerHTML = '';
+            columns.forEach(col => {
+                headerRow.innerHTML += `<th class="py-4 px-6">${col}</th>`;
+            });
+            headerRow.innerHTML += `<th class="py-4 px-6 text-right">Actions</th>`;
+
+            const tbody = document.getElementById('productTableBody');
+            tbody.innerHTML = '';
+
+            if (dataToRender.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${columns.length + 1}" class="text-center py-12 text-slate-400 font-medium">Walang pang produkto. I-click ang "Add Product" sa itaas.</td></tr>`;
+                document.getElementById('totalProductsCount').innerText = 0;
+                document.getElementById('lowStockCount').innerText = 0;
+                document.getElementById('totalValueCount').innerText = '₱0.00';
+                lucide.createIcons();
+                return;
+            }
+
+            let totalVal = 0;
+            let lowStock = 0;
+
+            dataToRender.forEach((prod) => {
+                totalVal += (prod.price || 0) * (prod.stock || 0);
+                if ((prod.stock || 0) <= 5) lowStock++;
+
+                let statusBadge = (prod.stock || 0) > 5
+                    ? `<span class="px-3 py-1 bg-emerald-50 text-emerald-600 text-xs font-bold rounded-full">In Stock</span>`
+                    : `<span class="px-3 py-1 bg-amber-50 text-amber-600 text-xs font-bold rounded-full">Low Stock</span>`;
+
+                let rowHtml = `<tr class="hover:bg-slate-50/50 transition-colors">`;
+
+                rowHtml += `<td class="py-4 px-6 font-bold text-slate-800">${prod.name}</td>`;
+                rowHtml += `<td class="py-4 px-6 font-bold">₱${parseFloat(prod.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>`;
+                rowHtml += `<td class="py-4 px-6">${prod.stock || 0} pcs</td>`;
+
+                if (columns.includes("Status")) {
+                    rowHtml += `<td class="py-4 px-6">${statusBadge}</td>`;
+                }
+
+                columns.slice(3).forEach(col => {
+                    let val = prod.customFields && prod.customFields[col] ? prod.customFields[col] : '-';
+                    rowHtml += `<td class="py-4 px-6 text-slate-600">${val}</td>`;
+                });
+
+                rowHtml += `
+                    <td class="py-4 px-6 text-right">
+                        <button onclick="deleteProduct(${prod.id})" class="p-2 text-slate-400 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                </tr>`;
+
+                tbody.innerHTML += rowHtml;
+            });
+
+            document.getElementById('totalProductsCount').innerText = products.length;
+            document.getElementById('lowStockCount').innerText = lowStock;
+            document.getElementById('totalValueCount').innerText = `₱${totalVal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+
+            lucide.createIcons();
+        }
+
+        function openAddModal() {
+            const container = document.getElementById('dynamicFormInputs');
+            container.innerHTML = '';
+
+            columns.slice(3).forEach(col => {
+                if (col !== "Status") {
+                    container.innerHTML += `
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">${col}</label>
+                            <input type="text" name="custom_${col}" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-orange-500">
+                        </div>
+                    `;
+                }
+            });
+
+            document.getElementById('productModal').classList.remove('hidden');
+        }
+
+        function closeAddModal() {
+            document.getElementById('productModal').classList.add('hidden');
+            document.getElementById('productForm').reset();
+        }
+
+        function openAddColumnModal() {
+            document.getElementById('columnModal').classList.remove('hidden');
+        }
+
+        function closeAddColumnModal() {
+            document.getElementById('columnModal').classList.add('hidden');
+        }
+
+        function saveNewColumn(e) {
+            e.preventDefault();
+            const colName = document.getElementById('newColumnName').value.trim();
+            if (colName && !columns.includes(colName)) {
+                const statusIndex = columns.indexOf("Status");
+                if (statusIndex !== -1) {
+                    columns.splice(statusIndex, 0, colName);
+                } else {
+                    columns.push(colName);
+                }
+            }
+            closeAddColumnModal();
+            document.getElementById('newColumnName').value = '';
+            renderTable();
+        }
+
+        function saveProduct(e) {
+            e.preventDefault();
+            const name = document.getElementById('prodName').value;
+            const price = parseFloat(document.getElementById('prodPrice').value);
+            const stock = parseInt(document.getElementById('prodStock').value);
+
+            let customFields = {};
+            columns.slice(3).forEach(col => {
+                if (col !== "Status") {
+                    const input = document.querySelector(`[name="custom_${col}"]`);
+                    if (input) customFields[col] = input.value;
+                }
+            });
+
+            const newProd = {
+                id: Date.now(),
+                name,
+                price,
+                stock,
+                customFields
+            };
+
+            products.push(newProd);
+            closeAddModal();
+            renderTable();
+        }
+
+        function deleteProduct(id) {
+            products = products.filter(p => p.id !== id);
+            renderTable();
+        }
+
+        function filterProducts() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = products.filter(p => p.name.toLowerCase().includes(query));
+            renderTable(filtered);
+        }
+    </script>
+</body>
+
+</html>

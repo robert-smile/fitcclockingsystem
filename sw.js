@@ -1,12 +1,14 @@
-const CACHE_NAME = 'fitc-cache-v4'; // Binago natin sa v2 para mag-trigger ng update
+const CACHE_NAME = 'fitc-cache-v5';
 const assets = [
   './',
-  './index.html',
+  './sample.html',
+  './login.html',
+  './instruction.html',
   './FITCL.png',
   './manifest.json'
 ];
 
-// 1. INSTALL - Dito natin ilalagay ang skipWaiting para mag-update agad
+// 1. INSTALL - I-cache ang lahat ng kailangan at mag-update agad
 self.addEventListener('install', e => {
   self.skipWaiting();
   e.waitUntil(
@@ -17,7 +19,7 @@ self.addEventListener('install', e => {
   );
 });
 
-// 2. ACTIVATE - Dito natin buburahin ang lahat ng lumang cache (v1)
+// 2. ACTIVATE - Burahin ang lumang cache at kontrolin agad ang mga pahina
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(cacheNames => {
@@ -31,11 +33,40 @@ self.addEventListener('activate', e => {
       );
     })
   );
-  return self.clients.claim(); // Kontrolin agad ang page nang walang refresh
+  return self.clients.claim();
 });
 
-// 3. FETCH - Network First Strategy (Para laging fresh ang data kung may internet)
+// 3. FETCH - Smart Routing Strategy para sa Instruction vs Login
 self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
+
+  // Kung hihilingin ang root/main page (./) o index.html
+  if (url.pathname.endsWith('/') || url.pathname.endsWith('/index.html')) {
+    e.respondWith(
+      (async () => {
+        // Tinitingnan natin kung ang kliyente ay tumatakbo bilang PWA (Standalone) o browser tab lang
+        const matchingClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+        const isStandalone = matchingClients.some(client => client.displayMode === 'standalone' || window.matchMedia('(display-mode: standalone)').matches);
+
+        // Kung naka-install na at bukas bilang App -> I-serve ang login.html
+        // Kung binuksan lang sa web browser link -> I-serve ang instruction.html
+        const targetPage = isStandalone ? './login.html' : './instruction.html';
+
+        try {
+          const netRes = await fetch(e.request);
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(e.request, netRes.clone());
+          return netRes;
+        } catch (err) {
+          const cachedResponse = await caches.match(targetPage);
+          return cachedResponse || caches.match('./index.html');
+        }
+      })()
+    );
+    return;
+  }
+
+  // Standard Network First strategy para sa ibang files (images, css, login.html, instruction.html, etc.)
   e.respondWith(
     fetch(e.request)
       .then(res => {
