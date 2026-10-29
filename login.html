@@ -43,11 +43,10 @@
 <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col justify-center items-center p-6">
 
     <div class="max-w-md w-full bg-white rounded-[2.5rem] p-8 shadow-xl border border-slate-100 space-y-6">
-        <!-- Header -->
+        <!-- Header / Logo -->
         <div class="text-center space-y-2">
-            <div
-                class="w-16 h-16 bg-orange-50 fitc-orange rounded-2xl mx-auto flex items-center justify-center font-black text-2xl shadow-inner">
-                F
+            <div class="w-24 h-24 mx-auto mb-2 flex items-center justify-center">
+                <img src="./FITCL.png" alt="FITC Logo" class="w-full h-full object-contain drop-shadow-md">
             </div>
             <h1 class="text-2xl font-black text-slate-800">FITC Portal</h1>
             <p class="text-xs text-slate-400 font-medium">Log in or register your account to continue</p>
@@ -92,7 +91,7 @@
                     class="w-full h-14 px-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 font-medium focus:outline-none focus:border-orange-500 transition-colors">
             </div>
 
-            <!-- Forgot Password Link (Makikita lang tuwing Login mode) -->
+            <!-- Forgot Password Link -->
             <div id="forgot-password-container" class="text-right">
                 <button onclick="handleForgotPassword()"
                     class="text-xs font-bold text-orange-600 hover:underline">Forgot Password?</button>
@@ -191,13 +190,11 @@
                 const result = await response.json();
 
                 if (result.status === "success" || currentMode === 'register') {
-                    // I-save sa localStorage para magamit ng Homepage
                     localStorage.setItem('fitc_user', JSON.stringify({
                         id: id,
                         name: result.name || name
                     }));
 
-                    // Redirect patungo sa sample.html
                     window.location.href = "sample.html";
                 } else {
                     alert(result.message || "User not found or incorrect password.");
@@ -205,7 +202,6 @@
                 }
             } catch (err) {
                 console.error(err);
-                // Fallback kung offline
                 localStorage.setItem('fitc_user', JSON.stringify({ id: id, name: name || "Employee" }));
                 window.location.href = "sample.html";
             }
