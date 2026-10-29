@@ -1,7 +1,7 @@
 {
     "name": "FITC Management System",
     "short_name": "FITC App",
-    "start_url": "./",
+    "start_url": "./sample.html",
     "display": "standalone",
     "background_color": "#f8fafc",
     "theme_color": "#f97316",
