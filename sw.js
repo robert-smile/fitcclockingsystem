@@ -1,7 +1,7 @@
 const CACHE_NAME = 'fitc-cache-v6';
 const assets = [
   './',
-  './login.html',
+  './index.html',
   './sample.html', // o login.html mo
   './FITCL.png',
   './manifest.json'
