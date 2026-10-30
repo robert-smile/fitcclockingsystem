@@ -9,6 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#f97316">
+    <link rel="apple-touch-icon" href="FITCL.png">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -102,16 +105,12 @@
             animation: check-bounce 0.5s 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
         }
 
-        #resetContent {
+        #resetContent,
+        #logoutContent {
             transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
     </style>
-
-
 </head>
-<link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#f97316">
-<link rel="apple-touch-icon" href="FITCL.png">
 
 <script>
     if ('serviceWorker' in navigator) {
@@ -124,6 +123,24 @@
 </script>
 
 <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+
+    <!-- GPS LOADING SCREEN -->
+    <div id="gpsLoadingOverlay"
+        class="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-6 text-center text-white transition-opacity duration-500">
+        <div class="w-24 h-24 mx-auto mb-6 flex items-center justify-center relative">
+            <div class="absolute inset-0 border-4 border-orange-500/30 rounded-full"></div>
+            <div class="absolute inset-0 border-4 border-orange-500 border-t-transparent rounded-full animate-spin">
+            </div>
+            <i data-lucide="map-pin" class="w-10 h-10 text-orange-500 animate-pulse"></i>
+        </div>
+        <h2 class="text-2xl font-black tracking-tight mb-2">Acquiring Location...</h2>
+        <p id="gps-status-desc" class="text-slate-400 text-xs font-medium max-w-xs mx-auto mb-8">Please wait while we
+            locate your GPS coordinates before starting the app.</p>
+        <button id="retry-gps-btn" onclick="initGPSCapture()"
+            class="hidden bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs uppercase px-6 py-3 rounded-xl transition-all shadow-lg">
+            Retry GPS
+        </button>
+    </div>
 
     <!-- FIXED & CLEANED HEADER -->
     <header
@@ -152,8 +169,8 @@
                             id="display-id">---</span></p>
                     <h2 class="text-xl font-bold" id="display-name">FITC User</h2>
                     <div class="flex items-center gap-2 mt-1 text-slate-400 text-xs font-medium">
-                        <i data-lucide="map-pin" class="w-3 h-3"></i>
-                        <span id="location-display">Locating...</span>
+                        <i data-lucide="map-pin" class="w-3 h-3 text-orange-500"></i>
+                        <span id="location-display">Ready</span>
                     </div>
                 </div>
             </div>
@@ -202,7 +219,8 @@
     <footer
         class="bg-slate-100/90 backdrop-blur-md border-t border-slate-200 px-4 py-3 fixed bottom-0 left-0 right-0 z-20">
         <div class="max-w-lg mx-auto w-full relative">
-            <button onclick="logoutUser()"
+            <!-- Naka-link na ngayon sa openLogoutModal() sa halip na direktang logout -->
+            <button onclick="openLogoutModal()"
                 class="absolute -top-14 right-0 w-12 h-12 bg-white border border-slate-200 text-slate-600 hover:text-rose-500 hover:border-rose-200 rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95 z-30"
                 title="Switch Account / Logout">
                 <i data-lucide="log-out" class="w-5 h-5"></i>
@@ -227,6 +245,29 @@
         </div>
     </footer>
 
+    <!-- LOGOUT CONFIRMATION MODAL -->
+    <div id="logoutModal" class="fixed inset-0 z-50 flex items-center justify-center p-6 hidden">
+        <div id="logoutBackdrop"
+            class="absolute inset-0 bg-slate-900/90 backdrop-blur-sm transition-opacity duration-300 opacity-0"></div>
+        <div id="logoutContent"
+            class="bg-white w-full max-w-sm rounded-[2.5rem] p-8 text-center shadow-2xl relative z-10 transition-all duration-300 scale-90 opacity-0">
+            <div
+                class="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                <i data-lucide="log-out" class="w-8 h-8"></i>
+            </div>
+            <h2 class="text-xl font-bold text-slate-800">Are you sure you want to log out?</h2>
+            <p class="text-slate-400 mt-2 text-xs font-medium leading-relaxed">You will need to enter your credentials
+                again to access your account.</p>
+            <div class="grid grid-cols-2 gap-3 mt-8">
+                <button onclick="closeLogoutModal()"
+                    class="py-4 font-bold text-slate-400 hover:text-slate-600 transition-colors">CANCEL</button>
+                <button onclick="confirmLogout()"
+                    class="bg-rose-500 hover:bg-rose-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-rose-200 transition-all">YES,
+                    LOG OUT</button>
+            </div>
+        </div>
+    </div>
+
     <!-- CLOCK IN MOTIVATIONAL MODAL -->
     <div id="inModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-6">
         <div id="inContent"
@@ -236,8 +277,8 @@
                 <i data-lucide="check-circle-2" id="inCheck" class="w-12 h-12 animate-check-bounce"></i>
             </div>
             <h2 class="text-3xl font-black text-slate-800 tracking-tight">You're Clocked In!</h2>
-            <p id="motivational-text" class="mt-4 text-slate-500 text-sm leading-relaxed px-2 font-medium italic">
-                "Galingan natin ngayon! Isang produktibong araw ang naghihintay sa iyo."</p>
+            <p id="motivational-text" class="mt-4 text-slate-500 text-sm leading-relaxed px-2 font-medium italic">"A
+                productive day awaits you. Let's do our best!"</p>
             <button onclick="closeInModal()"
                 class="w-full bg-fitc-orange text-white h-16 rounded-2xl font-bold text-lg mt-8 active:scale-95 transition-transform shadow-lg shadow-orange-200">LET'S
                 GO! 🚀</button>
@@ -301,11 +342,36 @@
 
             updateClock();
             setInterval(updateClock, 1000);
-            updateLocation();
+
+            initGPSCapture();
             renderUI();
         };
 
-        function logoutUser() {
+        // LOGOUT MODAL CONTROLS
+        function openLogoutModal() {
+            const modal = document.getElementById('logoutModal');
+            modal.classList.remove('hidden');
+            const backdrop = document.getElementById('logoutBackdrop');
+            const content = document.getElementById('logoutContent');
+            setTimeout(() => {
+                backdrop.classList.replace('opacity-0', 'opacity-100');
+                content.classList.replace('scale-90', 'scale-100');
+                content.classList.replace('opacity-0', 'opacity-100');
+            }, 10);
+        }
+
+        function closeLogoutModal() {
+            const backdrop = document.getElementById('logoutBackdrop');
+            const content = document.getElementById('logoutContent');
+            backdrop.classList.replace('opacity-100', 'opacity-0');
+            content.classList.replace('scale-100', 'scale-90');
+            content.classList.replace('opacity-100', 'opacity-0');
+            setTimeout(() => {
+                document.getElementById('logoutModal').classList.add('hidden');
+            }, 300);
+        }
+
+        function confirmLogout() {
             localStorage.removeItem('fitc_user');
             window.location.href = "login.html";
         }
@@ -316,13 +382,41 @@
             document.getElementById('date-display').innerText = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase();
         }
 
-        function updateLocation() {
+        function initGPSCapture() {
+            const overlay = document.getElementById('gpsLoadingOverlay');
+            const statusDesc = document.getElementById('gps-status-desc');
+            const retryBtn = document.getElementById('retry-gps-btn');
+
+            overlay.style.opacity = '1';
+            overlay.classList.remove('hidden');
+            retryBtn.classList.add('hidden');
+            statusDesc.innerText = "Please wait while we locate your GPS coordinates...";
+
             if ("geolocation" in navigator) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    document.getElementById('location-display').innerText = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
-                    localStorage.setItem('fitc_lat', pos.coords.latitude);
-                    localStorage.setItem('fitc_lng', pos.coords.longitude);
-                }, null, { enableHighAccuracy: true });
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+
+                        localStorage.setItem('fitc_lat', lat);
+                        localStorage.setItem('fitc_lng', lng);
+
+                        document.getElementById('location-display').innerText = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+
+                        overlay.style.opacity = '0';
+                        setTimeout(() => {
+                            overlay.classList.add('hidden');
+                        }, 500);
+                    },
+                    (error) => {
+                        console.warn("GPS Error code:", error.code);
+                        statusDesc.innerHTML = "<b>Unable to retrieve GPS location.</b><br>Please ensure Location Services are turned on on your device and access is allowed.";
+                        retryBtn.classList.remove('hidden');
+                    },
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                );
+            } else {
+                statusDesc.innerText = "Geolocation is not supported by your browser or device.";
             }
         }
 
@@ -340,22 +434,20 @@
                 time: new Date().toLocaleTimeString()
             };
 
-            // Save locally
             let logs = JSON.parse(localStorage.getItem('fitc_logs') || "[]");
             logs.unshift(log);
             localStorage.setItem('fitc_logs', JSON.stringify(logs.slice(0, 10)));
 
             if (type === 'IN') {
                 localStorage.setItem('fitc_startTime', timestamp);
-                triggerInModal(); // I-trigger ang motivational modal para sa CLOCK IN
+                triggerInModal();
             } else {
                 localStorage.removeItem('fitc_startTime');
-                triggerSuccessUI(); // Shift Recorded para sa CLOCK OUT
+                triggerSuccessUI();
             }
 
             renderUI();
 
-            // Background Sync
             fetch(GOOGLE_SCRIPT_URL, {
                 method: "POST",
                 mode: 'no-cors',
@@ -426,11 +518,11 @@
             if ("vibrate" in navigator) navigator.vibrate([80, 40, 80]);
 
             const quotes = [
-                "\"Isang produktibong araw ang naghihintay sa iyo. Galingan natin!\"",
-                "\"Let's crush this shift! Focus, energy, and positive vibes lang.\"",
-                "\"Handa na para sa tagumpay ngayon? Simulan na natin nang may ngiti!\"",
-                "\"Bawat hakbang patungo sa layunin ay mahalaga. Laban lang!\"",
-                "\"Gawing makabuluhan ang bawat oras ngayong araw. You got this!\""
+                "\"A productive day awaits you. Let's do our best!\"",
+                "\"Let's crush this shift! Focus, energy, and positive vibes.\"",
+                "\"Ready for success today? Let's start with a smile!\"",
+                "\"Every step toward your goal counts. Keep pushing!\"",
+                "\"Make every hour meaningful today. You got this!\""
             ];
             const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
             document.getElementById('motivational-text').innerText = randomQuote;
@@ -439,7 +531,6 @@
             const content = document.getElementById('inContent');
             const check = document.getElementById('inCheck');
 
-            // I-render ang Lucide icons bago lumabas ang modal
             lucide.createIcons();
 
             modal.classList.remove('hidden');
@@ -447,9 +538,8 @@
                 content.classList.remove('opacity-0', 'scale-90');
                 content.classList.add('opacity-100', 'scale-100');
 
-                // Patakbuhin ang bounce animation sa check icon
                 check.classList.remove('animate-check-bounce');
-                void check.offsetWidth; // Trigger reflow para maulit ang animation
+                void check.offsetWidth;
                 check.classList.add('animate-check-bounce');
             }, 10);
         }
