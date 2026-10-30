@@ -163,106 +163,84 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    self.addEventListener('fetch', (event) => {
-        const url = new URL(event.request.url);
-
-        if (event.request.method !== 'GET') {
-            return;
-        }
-
-        if (
-            url.pathname.includes('version.json') ||
-            url.hostname.includes('firestore.googleapis.com') ||
-            url.hostname.includes('firebaseio.com') ||
-            url.hostname.includes('identitytoolkit.googleapis.com') ||
-            url.hostname.includes('googleapis.com') ||
-            url.hostname.includes('cloudinary.com')
-        ) {
-            return;
-        }
-
-        // 🟢 OFFLINE-FIRST / CACHE-FIRST STRATEGY PARA SA FAST LOADING
-        if (event.request.mode === 'navigate') {
-            event.respondWith(
-                caches.open(CACHE_NAME).then(async (cache) => {
-                    // 1. Subukang hanapin muna ang buong URL sa cache
-                    const cachedResponse = await cache.match(event.request);
-                    if (cachedResponse) {
-                        // Mag-fetch sa background para sa update
-                        fetch(event.request).then(networkResponse => {
-                            if (networkResponse && networkResponse.status === 200) {
-                                cache.put(event.request, networkResponse.clone());
-                            }
-                        }).catch(() => { });
-                        return cachedResponse;
-                    }
-
-                    // 2. Subukang kumuha sa network
-                    try {
-                        const networkResponse = await fetch(event.request);
-                        if (networkResponse && networkResponse.status === 200) {
-                            cache.put(event.request, networkResponse.clone());
-                        }
-                        return networkResponse;
-                    } catch (err) {
-                        // 3. FALLBACK: Kung offline at may query params (tulad ng ?id=...), 
-                        // hanapin ang base file (hal. qrsscannedreports.html) sa cache
-                        const pathname = url.pathname;
-                        const fallbackMatch = await cache.match(pathname) || await cache.match('/' + pathname);
-                        if (fallbackMatch) return fallbackMatch;
-
-                        // Kung wala talaga, ibalik ang index.html
-                        return cache.match('index.html') || cache.match('/index.html');
-                    }
-                })
-            );
-            return;
-        }
-
-        // Para sa ibang static assets (CSS, JS, Images)
+    // 🟢 OFFLINE-FIRST / CACHE-FIRST STRATEGY PARA SA FAST LOADING KAHIT MAHINA ANG WIFI
+    if (event.request.mode === 'navigate') {
         event.respondWith(
-            caches.match(event.request).then((cachedResponse) => {
-                if (cachedResponse) {
-                    return cachedResponse;
-                }
-                return fetch(event.request).then((networkResponse) => {
-                    if (networkResponse && (networkResponse.status === 200 || networkResponse.status === 0) &&
-                        (networkResponse.type === 'basic' || networkResponse.type === 'cors' || networkResponse.type === 'opaque')) {
-                        const responseClone = networkResponse.clone();
-                        caches.open(CACHE_NAME).then((cache) => {
-                            cache.put(event.request, responseClone);
-                        });
+            caches.open(CACHE_NAME).then(async (cache) => {
+                // 1. Hanapin muna agad sa cache para mabilis bumukas nang walang hintay
+                const cachedResponse = await cache.match(event.request);
+
+                // 2. Gumawa ng network fetch sa background para sa update
+                const networkFetch = fetch(event.request).then((networkResponse) => {
+                    if (networkResponse && networkResponse.status === 200) {
+                        cache.put(event.request, networkResponse.clone());
                     }
                     return networkResponse;
                 }).catch(() => {
-                    if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('image')) {
-                        return cache.match('/Images/logo.png');
-                    }
+                    // Ignore network error kung talagang offline o walang masagap
                 });
+
+                // Kung may nakitang cache, ibigay agad sa user nang hindi naghihintay sa net!
+                if (cachedResponse) {
+                    return cachedResponse;
+                }
+
+                // Kung walang cache (unang beses pa lang), saka lang umasa sa network fetch o fallback sa index.html
+                try {
+                    return await networkFetch;
+                } catch (err) {
+                    const filename = url.pathname.split('/').pop() || 'index.html';
+                    const filenameMatch = await cache.match(filename) || await cache.match('/' + filename);
+                    if (filenameMatch) return filenameMatch;
+                    return cache.match('index.html') || cache.match('/index.html');
+                }
             })
         );
-    });
+        return;
+    }
+    event.respondWith(
+        caches.match(event.request).then((cachedResponse) => {
+            if (cachedResponse) {
+                return cachedResponse;
+            }
+            return fetch(event.request).then((networkResponse) => {
+                if (networkResponse && (networkResponse.status === 200 || networkResponse.status === 0) &&
+                    (networkResponse.type === 'basic' || networkResponse.type === 'cors' || networkResponse.type === 'opaque')) {
+                    const responseClone = networkResponse.clone();
+                    caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, responseClone);
+                    });
+                }
+                return networkResponse;
+            }).catch(() => {
+                if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('image')) {
+                    return caches.match('/Images/logo.png');
+                }
+            });
+        })
+    );
+});
 
-    self.addEventListener('notificationclick', (event) => {
-        console.log('[SW Engine] Notification clicked:', event.notification);
-        event.notification.close();
+self.addEventListener('notificationclick', (event) => {
+    console.log('[SW Engine] Notification clicked:', event.notification);
+    event.notification.close();
 
-        const relativeUrl = event.notification.data && event.notification.data.url ? event.notification.data.url : './';
-        const targetUrl = new URL(relativeUrl, self.location.origin).href;
+    const relativeUrl = event.notification.data && event.notification.data.url ? event.notification.data.url : './';
+    const targetUrl = new URL(relativeUrl, self.location.origin).href;
 
-        event.waitUntil(
-            clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-                for (const client of clientList) {
-                    if ('focus' in client) {
-                        client.focus();
-                        if ('navigate' in client) {
-                            return client.navigate(targetUrl);
-                        }
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            for (const client of clientList) {
+                if ('focus' in client) {
+                    client.focus();
+                    if ('navigate' in client) {
+                        return client.navigate(targetUrl);
                     }
                 }
-                if (clients.openWindow) {
-                    return clients.openWindow(targetUrl);
-                }
-            })
-        );
-    });
+            }
+            if (clients.openWindow) {
+                return clients.openWindow(targetUrl);
+            }
+        })
+    );
+});
