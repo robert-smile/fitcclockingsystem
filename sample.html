@@ -413,7 +413,7 @@
                         statusDesc.innerHTML = "<b>Unable to retrieve GPS location.</b><br>Please ensure Location Services are turned on on your device and access is allowed.";
                         retryBtn.classList.remove('hidden');
                     },
-                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                    { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
                 );
             } else {
                 statusDesc.innerText = "Geolocation is not supported by your browser or device.";
